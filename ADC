@@ -1,0 +1,86 @@
+
+// CONFIG3
+#pragma config WPFP = WPFP511           // Write Protection Flash Page Segment Boundary (Highest Page (same as page 170))
+#pragma config WPDIS = WPDIS            // Segment Write Protection Disable bit (Segmented code protection disabled)
+#pragma config WPCFG = WPCFGDIS         // Configuration Word Code Page Protection Select bit (Last page(at the top of program memory) and Flash configuration words are not protected)
+#pragma config WPEND = WPENDMEM         // Segment Write Protection End Page Select bit (Write Protect from WPFP to the last page of memory)
+
+// CONFIG2
+#pragma config POSCMOD = HS             // Primary Oscillator Select (HS oscillator mode selected)
+#pragma config DISUVREG = OFF           // Internal USB 3.3V Regulator Disable bit (Regulator is disabled)
+#pragma config IOL1WAY = ON             // IOLOCK One-Way Set Enable bit (Write RP Registers Once)
+#pragma config OSCIOFNC = OFF           // Primary Oscillator Output Function (OSCO functions as CLKO (FOSC/2))
+#pragma config FCKSM = CSDCMD           // Clock Switching and Monitor (Both Clock Switching and Fail-safe Clock Monitor are disabled)
+#pragma config FNOSC = PRI           // Oscillator Select (Primary oscillator (XT, HS, EC) with PLL module (XTPLL,HSPLL, ECPLL))
+#pragma config PLL_96MHZ = ON           // 96MHz PLL Disable (Enabled)
+#pragma config PLLDIV = DIV5            // USB 96 MHz PLL Prescaler Select bits (Oscillator input divided by 5 (20MHz input))
+#pragma config IESO = ON                // Internal External Switch Over Mode (IESO mode (Two-speed start-up) enabled)
+
+// CONFIG1
+#pragma config WDTPS = PS32768          // Watchdog Timer Postscaler (1:32,768)
+#pragma config FWPSA = PR128            // WDT Prescaler (Prescaler ratio of 1:128)
+#pragma config WINDIS = OFF             // Watchdog Timer Window (Standard Watchdog Timer enabled,(Windowed-mode is disabled))
+#pragma config FWDTEN = OFF             // Watchdog Timer Enable (Watchdog Timer is disabled)
+#pragma config ICS = PGx1               // Comm Channel Select (Emulator functions are shared with PGEC1/PGED1)
+#pragma config GWRP = OFF               // General Code Segment Write Protect (Writes to program memory are allowed)
+#pragma config GCP = OFF                // General Code Segment Code Protect (Code protection is disabled)
+#pragma config JTAGEN = OFF             // JTAG Port Enable (JTAG port is disabled)
+
+// #pragma config statements should precede project file includes.
+// Use project enums instead of #define for ON and OFF.
+
+#define FOSC 32000000   
+#define FCY  FOSC/2
+
+#include <xc.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <libpic30.h>
+#include <p24FJ256GB110.h>
+#include <xc.h>
+#include <stdint.h>
+
+void ADC_init(){
+AD1PCFGL = 0xffff;               //all pins is digital
+//AD1PCFGHbits.PCFG15 = 0;         //AN17
+AD1PCFGLbits.PCFG15 = 0;        //AN16
+AD1CON2bits.VCFG = 0b000;       //reference voltage Vr+ AVdd, Vr- AVss 
+AD1CON3bits.ADCS = 0b00000000;  //TCY
+AD1CON1bits.SSRC = 0b111;       //Internal counter ends sampling and starts conversion 
+AD1CON3bits.SAMC = 0b11111;     //31 Tad     Auto-Sample Time bits
+AD1CON1bits.FORM = 0b00;        //Integer (0000 00dd dddd dddd)
+//AD1CON2bits.SMPI = 0b0000;      // Interrupts at the completion of conversion for each 16th sample/convert sequence
+AD1CON1bits.ADON = 1;           //ACD mode on
+        
+}
+
+uint16_t ADC_read(uint8_t channel){
+    AD1CHS = channel; 
+    AD1CON1bits.SAMP = 1; //sampling after conversation completes
+//    AD1CON2bits.BUFM = 0; //???????
+    while(!AD1CON1bits.DONE);       
+    return ADC1BUF0;
+}
+
+void main(void) {
+    
+    int adc = 0;
+    TRISAbits.TRISA6 = 0;
+    ADC_init();
+    LATAbits.LATA6 = 1;
+    __delay_ms(1000);
+    LATAbits.LATA6 = 0;
+    
+    while(1){
+       adc =  ADC_read(15);
+//       if (adc>500){
+//            LATAbits.LATA6 = 1;
+//       } else LATAbits.LATA6 = 0;
+        LATAbits.LATA6 = (adc > 500) ? 1 : 0;
+//        LATAbits.LATA6 = 1;
+//        __delay_ms(1000);
+//        LATAbits.LATA6 = 0;
+//        __delay_ms(1000);
+    }
+    
+}
